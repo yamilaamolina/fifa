@@ -1,0 +1,123 @@
+---
+title: "ppp"
+author: "Autor"
+date: "20/11/2019"
+output: 
+  html_document: 
+      df_print: paged
+      toc: yes 
+  html_notebook: 
+      df_print: paged
+      fig:height: 4
+      fig:width: 6
+      theme: readable
+      toc: yes
+      toc_float: yes
+  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# **1 Overview**
+
+# **2 Entendiendo los datos**
+
+## *2.1 Carga de Librerias*
+Como primer paso, realizamos la carga de librerias y el dataset de Corolla:
+```{r Librerias}
+ 
+library("mosaic")
+library("dplyr")
+library("corrplot")
+library("fastDummies")
+library("ggplot2")
+library("rpart")
+library("rpart.plot")
+library("caret")
+library("caTools")
+library("randomForest")
+library("class")
+library("PerformanceAnalytics")
+library("mctest")
+library("psych")
+library("car")
+library("ggcorrplot")
+library("leaps")
+library("pls")
+```
+
+## *2.1 Carga de Dataset*
+```{r Carga de Csv}
+Fifa <- read.csv("data.csv")
+describe(Fifa)
+
+```
+
+## *2.2 Resumen del Dataset*
+```{r 2.3.1 Sumario del Dataset}
+summary(Fifa)
+```
+
+## *2.3 Estructura del dataset*
+```{r Estructura del Dataset}
+str(Fifa)
+```
+
+## *3.1 Boxplot*
+
+Realizamos la grafica de boxplot para poder visualizar los limites y posibles outliers de las variables
+```{r Boxplot del dataset}
+
+excluidos = select(Fifa,-c("ID","Name","Photo","Club",`Club.Logo`,"Work.Rate","Body.Type","Real.Face"))
+
+for(x in colnames(excluidos)){
+  boxplot(as.numeric(unlist(unclass(Fifa[x]))),main = x)
+}
+```
+
+
+```{r}
+for(x in colnames(excluidos)){
+  density(as.numeric(unlist(unclass(Fifa[x]))),main = x)
+
+
+plot(density(Fifa$Age))
+plot(density(as.numeric(Fifa$Flag)))
+plot(density(as.numeric(Fifa$Release.Clause)))
+}
+```
+
+```{r}
+CantidadNulos <- sapply(Fifa, function(x) sum(is.na(x)))
+data.frame(CantidadNulos)
+```
+
+## ELIMIINAR VARIABLES MENOS SIGNIFICATIVAS
+```{r}
+Fifa2<-Fifa
+Fifa2$ID=NULL
+Fifa2$Photo=NULL
+Fifa2$Real.Face=NULL
+Fifa2$Jersey.Number=NULL
+Fifa2$Club.Logo=NULL
+Fifa2$Flag=NULL
+Fifa2$Joined=NULL
+Fifa2$Loaned.From=NULL
+Fifa2$Contract.Valid.Until=NULL 
+Fifa2$Release.Clause=NULL
+Fifa2$Body.Type=NULL
+
+str(Fifa2)
+```
+```{r}
+Fifa2<-Fifa2[!is.na(Fifa2$LAM),]
+  
+ 
+str(Fifa2)
+
+```
+
+
