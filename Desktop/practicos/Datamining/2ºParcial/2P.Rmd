@@ -2,22 +2,21 @@
 title: "ppp"
 author: "Autor"
 date: "20/11/2019"
-output: 
-  html_document: 
+output:
+   
+    html_document:
       df_print: paged
-      toc: yes 
-  html_notebook: 
+      toc: yes
+    html_notebook:
       df_print: paged
       fig:height: 4
       fig:width: 6
-      theme: readable
       toc: yes
       toc_float: yes
-  
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
 ```
 
 
@@ -47,11 +46,13 @@ library("car")
 library("ggcorrplot")
 library("leaps")
 library("pls")
+library("knitr")
+
 ```
 
 ## *2.1 Carga de Dataset*
 ```{r Carga de Csv}
-Fifa <- read.csv("data.csv")
+Fifa <- read.csv("data.csv",na.strings =c("","NA"))
 describe(Fifa)
 
 ```
@@ -71,7 +72,7 @@ str(Fifa)
 Realizamos la grafica de boxplot para poder visualizar los limites y posibles outliers de las variables
 ```{r Boxplot del dataset}
 
-excluidos = select(Fifa,-c("ID","Name","Photo","Club",`Club.Logo`,"Work.Rate","Body.Type","Real.Face"))
+excluidos = select(Fifa,-c("ID","ï..","Name","Photo","Club","Club.Logo","Body.Type","Real.Face"))
 
 for(x in colnames(excluidos)){
   boxplot(as.numeric(unlist(unclass(Fifa[x]))),main = x)
@@ -80,44 +81,269 @@ for(x in colnames(excluidos)){
 
 
 ```{r}
-for(x in colnames(excluidos)){
-  density(as.numeric(unlist(unclass(Fifa[x]))),main = x)
-
-
 plot(density(Fifa$Age))
 plot(density(as.numeric(Fifa$Flag)))
 plot(density(as.numeric(Fifa$Release.Clause)))
-}
-```
 
+```
+## cONTAR VALORES NULOS 
 ```{r}
 CantidadNulos <- sapply(Fifa, function(x) sum(is.na(x)))
 data.frame(CantidadNulos)
 ```
 
+
+```{r}
+Fifa$Position = factor(as.character(Fifa$Position))
+  
+suma = data.frame((summary(Fifa$Position)))
+id_m = grepl("M$", levels(Fifa$Position))
+id_b = grepl("B$", levels(Fifa$Position))
+id_d = !(id_m|id_b)
+columnas = c(levels(Fifa$Position)[id_b],
+             levels(Fifa$Position)[id_m],
+             levels(Fifa$Position)[id_d])
+
+htmlTable::htmlTable(suma,
+          header =  "Número de jugadores",
+          rnames = columnas,
+          rgroup = c("Defensas", "Mediocampistas", "Delanteros"),
+          n.rgroup =  c(sum(id_b), sum(id_m), sum(id_d)), 
+          caption="Tabla 18. Resumen variable Position.",
+          tfoot = paste0("&dagger; ", dim(Fifa)[1], " observaciones"),
+          col.rgroup = c("none","#9999F7"))
+
+
+```
+
+```{r}
+
+Fifa$Nationality = factor(Fifa$Nationality)
+
+suma = data.frame((summary(Fifa$Nationality)))
+#suma[,3] = round(suma[,3],0)
+names(suma) = c("Jugadores")
+htmlTable::htmlTable(head(suma,10),
+           caption = "Tabla 7. Numero de jugadores por pais.",
+           tfoot = paste0("&dagger; 10 observaciones de ",
+           nlevels(Fifa$Nationality), " paises en total"),
+           col.rgroup = c("none","#9999F7"))
+```
+
+```{r}
+CantidadNULL <- sapply(Fifa1, function(x) sum(is.nan(x)))
+data.frame(CantidadNULL)
+```
+
+```{r}
+CantidadNAN <- sapply(Fifa, function(x) sum(is.null(x)))
+data.frame(CantidadNAN)
+```
+
 ## ELIMIINAR VARIABLES MENOS SIGNIFICATIVAS
 ```{r}
 Fifa2<-Fifa
-Fifa2$ID=NULL
-Fifa2$Photo=NULL
-Fifa2$Real.Face=NULL
-Fifa2$Jersey.Number=NULL
-Fifa2$Club.Logo=NULL
-Fifa2$Flag=NULL
-Fifa2$Joined=NULL
-Fifa2$Loaned.From=NULL
-Fifa2$Contract.Valid.Until=NULL 
-Fifa2$Release.Clause=NULL
-Fifa2$Body.Type=NULL
+#Fifa2$ID=NULL
+#Fifa2$Photo=NULL
+#Fifa2$Real.Face=NULL
+#Fifa2$Name=NULL
+#Fifa2$Body.Type=NULL
 
 str(Fifa2)
 ```
+
+## REEMPLAZAR VALORES NA 
+
 ```{r}
-Fifa2<-Fifa2[!is.na(Fifa2$LAM),]
+## PARA RELEASE CLAUSE
+
+
+# Nueva lista que devuelve release clause
+c = lapply(Fifa2$Release.Clause, function(x) stringr::str_match(x,"[:digit:]+[K|M]|[:digit:]+\\.+[:digit:][+K|M]"))
+# Sirve para almacenar los valores que no estan listado
+b = list()
+for (x in unlist(c)){
+  if(is.na(x)){
+    b= append(b,0)
+  }
+  else if(stringr::str_detect(x,"[K]") == TRUE){
+    b = append(b,as.numeric(stringr::str_replace(x,"[K]",""))*1000)
+  }
+  else if(stringr::str_detect(x,"[M]") == TRUE){
+    b = append(b,as.numeric(stringr::str_replace(x,"[M]",""))*1000000)
+  }
   
- 
-str(Fifa2)
+}
+# Reempleazar por la media los valores 0
+for(x in 1:length(b)){
+    if(b[x] ==0){
+        b[x] = mean(unlist(b))
+    }
+}
+
+Fifa2$Release.Clause = unlist(b)
+
+#Fifa2$Release.Clause[1:50]
+#Fifa2$Release.Clause<-gsub("â","¬","",Fifa2$Release.Clause)
+#Fifa2$Release.Clause<-gsub("M","",Fifa2$Release.Clause)
+#Fifa2$Release.Clause<-gsub("K","",Fifa2$Release.Clause)
+#Fifa2$Release.Clause<-as.numeric(Fifa2$Release.Clause)
 
 ```
 
+
+```{r}
+
+## PARA VALUE
+
+d = lapply(Fifa2$Value, function(x) stringr::str_match(x,"[:digit:]+[K|M]|[:digit:]+\\.+[:digit:][+K|M]"))
+# Sirve para almacenar los valores que no estan listado
+b = list()
+for (x in unlist(d)){
+  if(is.na(x)){
+    b= append(b,0)
+  }
+  else if(stringr::str_detect(x,"[K]") == TRUE){
+    b = append(b,as.numeric(stringr::str_replace(x,"[K]",""))*1000)
+  }
+  else if(stringr::str_detect(x,"[M]") == TRUE){
+    b = append(b,as.numeric(stringr::str_replace(x,"[M]",""))*1000000)
+  }
+  
+}
+# Reempleazar por la media los valores 0
+for(x in 1:length(b)){
+    if(b[x] ==0){
+        b[x] = mean(unlist(b))
+    }
+}
+
+Fifa2$Value = unlist(b)
+```
+
+
+```{r}
+#MEDIA PAR COLUMNAS CON SUBNIVEL
+
+cols.dont.want <- c("ï..","ID","Name", "Photo", "Nationality", "Flag", "Potential", "Club", "Club.Logo", "Preferred.Foot", "Work.Rate", "Body.Type", "Real.Face", "Position", "Jersey.Number", "Joined", "Loaned.From", "Contract.Valid.Until" ) 
+Fifa2 <- Fifa2[, ! names(Fifa2) %in% cols.dont.want, drop = F]
+
+seleccion = c("LS","ST","RS","LW","LF","CF","RF","RW","LAM","CAM","RAM","LM","LCM","CM","RCM","RM","LWB","LDM","CDM","RDM","RWB","LB","LCB","CB","RCB","RB")
+
+a = list()
+for(y in seleccion){
+  for (x in Fifa2[[y]]){
+  a = append(a,sum(as.numeric(unlist(strsplit(x,"+",fixed = TRUE)))))
+  }
+  Fifa2[[y]] = unlist(a)
+  Fifa2[Fifa2[,y]==0,y]<-round(mean(Fifa2[,y] ,na.rm=TRUE),digits = 2) 
+  a = list()
+}
+
+#for (x in filter(Fifa,Fifa$LS!="")$LS[1:10]) print(sum(as.numeric(unlist(strsplit(x,"+",fixed = TRUE)))))
+
+#str(Fifa2)
+View(Fifa2)
+```
+
+```{r}
+
+## RELLENO PARA REPUTATION, WEAK FOOT, SKILL MOVES, HEIGHT , WEIGHT
+
+for(i in 36:ncol(Fifa2)){
+   Fifa2[is.na(Fifa2[,i]), i] <- round(mean(Fifa2[,i], na.rm = TRUE), digits = 0)
+}
+S2 = c("International.Reputation","Weak.Foot","Skill.Moves","Height","Weight")
+for(i in S2){
+   Fifa2[is.na(Fifa2[,i]), i] <- round(mean(Fifa2[,i], na.rm = TRUE), digits = 0)
+}
+```
+
+
+```{r}
+## PARA WEIGHT , HEIGHT , WAGE
+# considerar reputation para dream team
+
+
+Fifa2$Wage[1:50]
+Fifa2$Wage<-gsub("â","¬","",Fifa2$Wage)
+Fifa2$Wage<-as.numeric(gsub("k","",Fifa2$Wage))
+
+Fifa$Height[1:50]
+Fifa2$Height<-gsub("â","¬","",Fifa2$Height)
+
+Fifa2$Weight[1:50]
+
+```
+
+
+
+```{r}
+ggplot(dataPosition[["CB"]], aes(x = Skill.Moves, y = Age, color = as.factor(Overall))) + geom_point()
+```
+
+
+
+```{r}
+corr_mat=cor(Fifa2[,11:70],method="pearson")
+corrplot::corrplot(corr_mat, method = "square", outline = T, addgrid.col = "darkgray", 
+         cl.pos = "b", tl.col = "#6633CC", tl.cex = 0.5, cl.cex = 0.5,
+         col = colorRampPalette(c("#88CC00","orange","#6633FF"))(100))
+
+```
+
+
+
+## CENTRAL BACK
+
+```{r}
+dataPosition<-split(Fifa2,Fifa2$Position)
+dataPosition[["CB"]]
+str(dataPosition[["CB"]])
+
+hist(as.numeric(dataPosition$CB$Jumping))
+hist(as.numeric(dataPosition$CB$Height))
+hist(as.numeric(dataPosition$CB$StandingTackle))
+hist(as.numeric(dataPosition$CB$HeadingAccuracy))
+hist(as.numeric(dataPosition$CB$Positioning))
+hist(as.numeric(dataPosition$CB$ShotPower))
+hist(as.numeric(dataPosition$CB$Finishing))
+hist(as.numeric(dataPosition$CB$Acceleration))
+hist(as.numeric(dataPositiongk$CB$Value))
+```
+
+
+## GOAL KEEPER
+```{r}
+
+#filter para gk
+dataPositiongk<-split(Fifa,Fifa$Position)
+dataPositiongk[["GK"]]
+
+str(dataPositiongk[["GK"]])
+hist(as.numeric(dataPositiongk$GK$Height))
+hist(as.numeric(dataPositiongk$GK$Weight))
+hist(as.numeric(dataPositiongk$GK$GKDiving))
+hist(as.numeric(dataPositiongk$GK$GKReflexes ))
+hist(as.numeric(dataPositiongk$GK$GKPositioning))
+hist(as.numeric(dataPositiongk$GK$GKHandling))
+hist(as.numeric(dataPositiongk$GK$Acceleration))
+hist(as.numeric(dataPositiongk$GK$Value))
+```
+
+```{r}
+#plot(hclust(dist(Fifa)))
+```
+
+
+```{r}
+ggplot(dataPositiongk[["GK"]], aes(x = Skill.Moves, y = Age, color = as.factor(Overall))) + geom_point()
+```
+
+```{r}
+scatter.hist(x=Fifa$Age,y=Fifa$Potential, xlab = "Age", ylab = "Potencial")
+scatter.hist(x=Fifa$SprintSpeed,y=Fifa$Aggression, xlab = "Living", ylab = "Price")
+scatter.hist(x=as.numeric(Fifa$Weak.Foot),y=as.numeric(Fifa$Preferred.Foot), xlab = "Weak foot", ylab = "Preferred.Foot")
+
+```
 
